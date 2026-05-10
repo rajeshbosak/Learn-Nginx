@@ -148,6 +148,10 @@ button.secondary:hover {
 .item-list {
   display: grid;
   gap: 8px;
+  max-height: min(520px, 60vh);
+  overflow-y: auto;
+  padding-right: 6px;
+  overscroll-behavior: contain;
 }
 
 .item-row {
