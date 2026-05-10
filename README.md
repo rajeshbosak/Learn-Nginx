@@ -118,6 +118,208 @@ sudo mkdir -p /var/www/react-crud-app
 sudo cp -r dist/* /var/www/react-crud-app/
 ```
 
+### Frontend Dashboard Guide
+
+The frontend is not only a CRUD screen. It is an operations-style dashboard for learning how frontend traffic behaves when it goes through Nginx and reaches the backend.
+
+#### Top Status Bar
+
+The top bar shows the app name, app version, and API mode.
+
+```text
+API mode: same-domain proxy
+```
+
+means the frontend is calling relative URLs like `/items`. This is the recommended mode when React is served by Nginx and Nginx proxies API routes to the backend.
+
+```text
+API host: http://localhost:5000
+```
+
+means the frontend is directly calling the backend. This is useful during local Vite development.
+
+#### Items API
+
+This section uses the basic CRUD routes:
+
+```text
+GET    /items
+POST   /items
+DELETE /items/:id
+```
+
+Use it to confirm that the frontend can reach the backend. If this section loads data, your API connection is working.
+
+What to learn:
+
+```text
+Frontend -> Nginx -> Backend proxy flow
+Basic request logging
+Rate limiting on write operations
+4xx errors when validation fails
+```
+
+#### Scenario Runner
+
+This section runs common backend diagnostics.
+
+```text
+Health check          GET /health
+Readiness check       GET /ready
+Metrics               GET /metrics
+Forwarded headers     GET /debug/headers
+Cacheable products    GET /cache/products
+```
+
+Use `Forwarded headers` to verify that Nginx is passing headers like:
+
+```text
+Host
+X-Real-IP
+X-Forwarded-For
+X-Forwarded-Proto
+```
+
+Use `Cacheable products` with Nginx `proxy_cache`. When configured correctly, repeated requests should show cache behavior using the `X-Cache` response header from Nginx.
+
+What to learn:
+
+```text
+Health checks
+Readiness checks
+Reverse proxy headers
+Backend metrics
+Nginx proxy caching
+```
+
+#### Synthetic Endpoints
+
+This section lets you intentionally create different backend behaviors.
+
+```text
+Slow response          GET /slow?ms=1000
+Unstable error rate    GET /unstable?failRate=0.5
+Synthetic status       GET /status/:code
+Payload size           GET /payload?kb=10
+CPU work               GET /cpu?ms=100
+```
+
+Use these when learning timeout handling, error logs, large responses, and CPU saturation.
+
+Examples:
+
+```text
+/slow?ms=8000
+```
+
+can help you test `proxy_read_timeout`.
+
+```text
+/unstable?failRate=1
+```
+
+always throws a backend error, which should appear in `errors.log`.
+
+```text
+/payload?kb=1024
+```
+
+returns a larger response body so you can test compression, transfer time, and client behavior.
+
+What to learn:
+
+```text
+Nginx timeout behavior
+Backend error logging
+Status code handling
+Large payload behavior
+CPU-bound request impact
+```
+
+#### Advanced Backend Features
+
+This section demonstrates patterns that are common in production services.
+
+Search and pagination:
+
+```text
+GET /api/v1/items?page=1&limit=10&q=proxy&category=cache
+```
+
+Use this to learn query strings, pagination, filtered APIs, and path-based routing through `/api/`.
+
+Seed test data:
+
+```text
+POST /api/v1/items/bulk
+```
+
+This creates many in-memory items quickly. Use it before load testing pagination or larger list responses.
+
+Protected admin route:
+
+```text
+POST /admin/reset
+Header: x-admin-token: local-dev-token
+```
+
+This resets demo data. Use it to learn protected routes and how headers pass through Nginx.
+
+Idempotent writes:
+
+```text
+POST /api/v1/orders
+Header: idempotency-key: order-123
+```
+
+If you send the same `idempotency-key` again, the backend returns the same order instead of creating a duplicate. This is a common production pattern for safe retries.
+
+Request correlation:
+
+```text
+GET /debug/request-id
+Header: x-request-id: web-123
+```
+
+The backend returns the request ID and also sets `X-Request-ID` in the response. Use this to connect frontend errors, Nginx access logs, and backend logs.
+
+Server-sent events:
+
+```text
+GET /stream/events
+```
+
+This opens a short event stream. Use it to learn long-lived HTTP connections and why Nginx needs `proxy_buffering off` for streaming endpoints.
+
+What to learn:
+
+```text
+Pagination and filtering
+Bulk data setup before load tests
+Protected admin operations
+Idempotency keys for safe retries
+Request IDs for tracing
+SSE streaming through Nginx
+```
+
+#### Commands to Try
+
+The frontend also shows useful `autocannon` commands. These are examples for testing direct backend traffic and Nginx-routed traffic.
+
+Direct backend:
+
+```bash
+autocannon -c 100 -d 20 http://localhost:5000/items
+```
+
+Through Nginx:
+
+```bash
+autocannon -c 100 -d 20 http://localhost/items
+```
+
+Start with small concurrency and increase gradually.
+
 ## Recommended Nginx Setup: Same Domain
 
 Use this setup when the frontend and backend are accessed from the same domain. The browser calls `/items`, and Nginx forwards only API requests to the backend.
