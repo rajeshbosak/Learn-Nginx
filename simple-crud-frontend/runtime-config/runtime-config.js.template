@@ -1,0 +1,33 @@
+window.RUNTIME_CONFIG = {
+  // API Configuration
+  VITE_API_HOST: "__VITE_API_HOST__",
+  VITE_API_TIMEOUT: "__VITE_API_TIMEOUT__",
+  VITE_API_RETRY_COUNT: "__VITE_API_RETRY_COUNT__",
+  
+  // App Configuration
+  APP_NAME: "__APP_NAME__",
+  APP_VERSION: "__APP_VERSION__",
+  ENVIRONMENT: "__ENVIRONMENT__",
+  
+  // Feature Flags
+  ENABLE_ANALYTICS: "__ENABLE_ANALYTICS__",
+  ENABLE_DEBUG_MODE: "__ENABLE_DEBUG_MODE__",
+  
+  // API Endpoints
+  ENDPOINTS: {
+    ITEMS: {
+      GET_ALL: "/items",
+      GET_BY_ID: (id) => `/items/${id}`,
+      CREATE: "/items",
+      UPDATE: (id) => `/items/${id}`,
+      DELETE: (id) => `/items/${id}`
+    },
+    USERS: {
+      GET_ALL: "/users",
+      GET_BY_ID: (id) => `/users/${id}`,
+      CREATE: "/users",
+      UPDATE: (id) => `/users/${id}`,
+      DELETE: (id) => `/users/${id}`
+    }
+  }
+};
