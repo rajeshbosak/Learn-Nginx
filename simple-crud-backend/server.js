@@ -216,7 +216,7 @@ function requireAdmin(req, res, next) {
 
 
 // 🔐 Stricter limiter for write operations
-const writeLimiter = rateLimit({
+const writeLimiter1 = rateLimit({
     windowMs: 1 * 60 * 1000, //   minute, seconds, milliseconds
     max: 5, // only 10 write requests per IP
     message: {
@@ -235,6 +235,10 @@ const writeLimiter = rateLimit({
     },
 });
 
+// Rate limiting is intentionally disabled for this learning setup.
+const writeLimiter = (req, res, next) => {
+    next();
+};
 
 // In-memory DB (for demo)
 let items = [

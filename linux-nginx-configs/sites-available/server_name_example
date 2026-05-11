@@ -1,0 +1,60 @@
+# -----------------------------------
+# FRONTEND
+# -----------------------------------
+
+# Default fallback server
+server {
+    listen 80 default_server;
+    server_name _;
+
+    return 404;
+}
+
+# if we are not giving the above default_server then it would
+# render the below  server { as nginx returns the first matching server }
+
+server {
+    listen 80;
+    server_name myapp.com www.myapp.com;
+
+    #root /var/www/react-crud-app;
+    root /var/www/simple-crud-frontend-app;
+    index index.html;
+
+    location / {
+        try_files $uri /index.html;
+    }
+}
+
+# -----------------------------------
+# BACKEND API
+# -----------------------------------
+
+upstream simple_crud_backend_app{
+  least_conn;
+  server localhost:8000;
+  server localhost:8001;
+  server localhost:8002;
+}
+
+
+server {
+    listen 80;
+    server_name api.myapp.com;
+
+    location / {
+        #proxy_pass http://localhost:8000;
+        
+        proxy_pass http://simple_crud_backend_app;
+  
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
