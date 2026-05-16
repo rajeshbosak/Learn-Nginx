@@ -1,0 +1,140 @@
+# =========================================================
+# NGINX API GATEWAY EXAMPLE
+# =========================================================
+#
+# Public API:
+#   http://api.localhost/api/auth/*
+#   http://api.localhost/api/users/*
+#   http://api.localhost/api/products/*
+#
+# Internal services:
+#   auth-service     http://localhost:4001
+#   user-service     http://localhost:4002
+#   product-service  http://localhost:4003
+#
+# This demonstrates Nginx as the API gateway:
+#   - one public API hostname
+#   - path-based routing to different backend services
+#   - rate limiting at the edge
+#   - CORS handling in one place
+#   - request ID and forwarding headers
+
+limit_req_zone $binary_remote_addr zone=microservice_api_limit:10m rate=10r/s;
+
+map $http_upgrade $connection_upgrade {
+    default upgrade;
+    '' close;
+}
+
+upstream auth_service {
+    server localhost:4001;
+}
+
+upstream user_service {
+    server localhost:4002;
+}
+
+upstream product_service {
+    server localhost:4003;
+}
+
+server {
+    listen 80;
+    server_name api.localhost;
+
+    location = /gateway/health {
+        default_type application/json;
+        return 200 '{"service":"nginx-api-gateway","status":"ok"}';
+    }
+
+    location / {
+        if ($request_method = OPTIONS) {
+            add_header Access-Control-Allow-Origin $http_origin always;
+            add_header Access-Control-Allow-Methods "GET, POST, PUT, PATCH, DELETE, OPTIONS" always;
+            add_header Access-Control-Allow-Headers "Authorization, Content-Type, X-Request-ID, X-User-ID" always;
+            add_header Access-Control-Max-Age 86400 always;
+            return 204;
+        }
+
+        return 404;
+    }
+
+    # Public:  /api/auth/register
+    # Private: /auth/register on auth-service
+    location /api/auth/ {
+        limit_req zone=microservice_api_limit burst=20 nodelay;
+
+        add_header Access-Control-Allow-Origin $http_origin always;
+        add_header Access-Control-Allow-Credentials true always;
+
+        proxy_pass http://auth_service/auth/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Request-ID $request_id;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+    }
+
+    # Public:  /api/users/USER_ID
+    # Private: /users/USER_ID on user-service
+    location /api/users/ {
+        limit_req zone=microservice_api_limit burst=20 nodelay;
+
+        add_header Access-Control-Allow-Origin $http_origin always;
+        add_header Access-Control-Allow-Credentials true always;
+
+        proxy_pass http://user_service/users/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Request-ID $request_id;
+        proxy_set_header X-User-ID $http_x_user_id;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+    }
+
+    # Public:  /api/products
+    # Private: /products on product-service
+    location = /api/products {
+        limit_req zone=microservice_api_limit burst=20 nodelay;
+
+        add_header Access-Control-Allow-Origin $http_origin always;
+        add_header Access-Control-Allow-Credentials true always;
+
+        proxy_pass http://product_service/products;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Request-ID $request_id;
+        proxy_set_header X-User-ID $http_x_user_id;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+    }
+
+    # Public:  /api/products/PRODUCT_ID
+    # Private: /products/PRODUCT_ID on product-service
+    location /api/products/ {
+        limit_req zone=microservice_api_limit burst=20 nodelay;
+
+        add_header Access-Control-Allow-Origin $http_origin always;
+        add_header Access-Control-Allow-Credentials true always;
+
+        proxy_pass http://product_service/products/;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Request-ID $request_id;
+        proxy_set_header X-User-ID $http_x_user_id;
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection $connection_upgrade;
+    }
+}

@@ -535,3 +535,10 @@ curl -I http://localhost/cache/products
 The root `.gitignore` ignores dependencies, build output, `.env` files, generated logs, editor files, and crash dumps across all subprojects.
 
 Generated log files are intentionally not committed. The backend keeps `simple-crud-backend/logs/.gitkeep` only so the logs folder exists in the repo.
+
+
+
+
+/api/auth/*     -> localhost:4001
+/api/users/*    -> localhost:4002
+/api/products/* -> localhost:4003

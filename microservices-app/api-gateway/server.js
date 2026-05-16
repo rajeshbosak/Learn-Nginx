@@ -12,6 +12,28 @@ const AUTH_SERVICE = "http://localhost:4001";
 const USER_SERVICE = "http://localhost:4002";
 const PRODUCT_SERVICE = "http://localhost:4003";
 
+app.get("/", (req, res) => {
+    res.json({
+        service: "express-api-gateway",
+        role: "Application-level gateway example",
+        note: "The Nginx api_gateway_example file shows the same public API paths routed at the Nginx layer.",
+        routes: ["/api/auth/*", "/api/users/*", "/api/products/*"],
+    });
+});
+
+app.get("/health", (req, res) => {
+    res.json({
+        service: "express-api-gateway",
+        status: "ok",
+        upstreams: {
+            auth: AUTH_SERVICE,
+            users: USER_SERVICE,
+            products: PRODUCT_SERVICE,
+        },
+        timestamp: new Date().toISOString(),
+    });
+});
+
 function verifyToken(req, res, next) {
     const token = req.headers.authorization?.split(" ")[1];
     if (!token) return res.status(401).json({ message: "No token" });
