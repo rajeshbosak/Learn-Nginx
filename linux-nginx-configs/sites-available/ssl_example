@@ -1,0 +1,117 @@
+# =========================================================
+# RATE LIMIT ZONE
+# =========================================================
+
+# Allow 5 requests/sec per client IP
+limit_req_zone $binary_remote_addr zone=api_limit:10m rate=5r/s;
+
+
+# =========================================================
+# DEFAULT FALLBACK SERVER
+# =========================================================
+
+server {
+    listen 80 default_server;
+    server_name _;
+
+    return 404;
+}
+
+
+# =========================================================
+# FRONTEND HTTP -> HTTPS REDIRECT
+# =========================================================
+
+server {
+    listen 80;
+    server_name myapp.com www.myapp.com;
+
+    return 301 https://$host$request_uri;
+}
+
+
+# =========================================================
+# FRONTEND HTTPS SERVER
+# =========================================================
+
+server {
+    listen 443 ssl;
+    server_name myapp.com www.myapp.com;
+
+    ssl_certificate /etc/nginx/ssl/myapp.crt;
+    ssl_certificate_key /etc/nginx/ssl/myapp.key;
+
+    root /var/www/simple-crud-frontend-app;
+    index index.html;
+
+    location / {
+        try_files $uri /index.html;
+    }
+}
+
+
+# =========================================================
+# BACKEND LOAD BALANCER
+# =========================================================
+
+upstream simple_crud_backend_app {
+    least_conn;
+
+    server localhost:8000;
+    server localhost:8001;
+    server localhost:8002;
+}
+
+
+# =========================================================
+# API HTTP -> HTTPS REDIRECT
+# =========================================================
+
+server {
+    listen 80;
+    server_name api.myapp.com;
+
+    return 301 https://$host$request_uri;
+}
+
+
+# =========================================================
+# API HTTPS SERVER
+# =========================================================
+
+server {
+    listen 443 ssl;
+    server_name api.myapp.com;
+
+    ssl_certificate /etc/nginx/ssl/myapp.crt;
+    ssl_certificate_key /etc/nginx/ssl/myapp.key;
+
+    location / {
+
+        # -----------------------------
+        # RATE LIMITING
+        # -----------------------------
+        limit_req zone=api_limit burst=10 nodelay;
+
+        # -----------------------------
+        # LOAD BALANCER
+        # -----------------------------
+        proxy_pass http://simple_crud_backend_app;
+
+        proxy_http_version 1.1;
+
+        # -----------------------------
+        # HEADERS
+        # -----------------------------
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+
+        # -----------------------------
+        # WEBSOCKET SUPPORT
+        # -----------------------------
+        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Connection "upgrade";
+    }
+}
