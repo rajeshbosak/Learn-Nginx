@@ -160,6 +160,11 @@ server {
 
     location = /gateway/health {
         default_type application/json;
+
+        add_header Access-Control-Allow-Origin *;
+        add_header Access-Control-Allow-Methods "GET, OPTIONS";
+        add_header Access-Control-Allow-Headers "*";
+
         return 200 '{"service":"nginx-api-gateway","status":"ok"}';
     }
 
