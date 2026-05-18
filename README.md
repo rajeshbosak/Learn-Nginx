@@ -71,6 +71,45 @@ tail -f simple-crud-backend/logs/verbose.log
 tail -f simple-crud-backend/logs/errors.log
 ```
 
+## Local Load Balancing Lab
+
+You do not need to deploy the backend just to test Nginx load balancing. This repo includes a local Docker Compose setup that starts:
+
+```text
+backend-1
+backend-2
+backend-3
+nginx-lb on http://localhost:8080
+```
+
+Start it from the repo root:
+
+```bash
+docker compose -f docker-compose.local-lb.yml up --build
+```
+
+In another terminal, call the Nginx URL a few times:
+
+```bash
+curl -i http://localhost:8080/health
+curl -i http://localhost:8080/health
+curl -i http://localhost:8080/health
+```
+
+The response body includes the backend `instanceId`, and the response headers include `X-Upstream-Addr`, so you can see which backend container handled each request.
+
+Run a small loop:
+
+```bash
+for i in {1..10}; do curl -s http://localhost:8080/health; echo; done
+```
+
+Stop the lab:
+
+```bash
+docker compose -f docker-compose.local-lb.yml down
+```
+
 ### What the Backend Teaches
 
 ```text
@@ -536,9 +575,33 @@ The root `.gitignore` ignores dependencies, build output, `.env` files, generate
 
 Generated log files are intentionally not committed. The backend keeps `simple-crud-backend/logs/.gitkeep` only so the logs folder exists in the repo.
 
+## Microservices With Nginx Gateway
 
+The microservices example uses Nginx as the API gateway. There is no separate Express API gateway service in the main request path.
 
+```text
+Frontend
+  -> Nginx API gateway
+      /api/auth/*     -> auth-service:4001
+      /api/users/*    -> user-service:4002
+      /api/products/* -> product-service:4003
+```
 
-/api/auth/*     -> localhost:4001
-/api/users/*    -> localhost:4002
-/api/products/* -> localhost:4003
+Start the services:
+
+```bash
+cd microservices-app
+docker compose up --build
+```
+
+Use `linux-nginx-configs/api_gateway_example` as the Nginx gateway config for local path-based routing.
+
+Auth behavior:
+
+```text
+/api/auth/* is public for register/login.
+/api/users/* requires Authorization: Bearer <jwt>.
+/api/products/* requires Authorization: Bearer <jwt>.
+```
+
+The user and product services verify JWTs themselves. Nginx is responsible for routing, rate limiting, CORS, forwarding headers, and edge behavior.

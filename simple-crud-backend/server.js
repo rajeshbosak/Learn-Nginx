@@ -114,6 +114,7 @@ app.use((req, res, next) => {
 const PORT = process.env.PORT || 5000;
 const APP_VERSION = process.env.APP_VERSION || "1.0.0";
 const ADMIN_TOKEN = process.env.ADMIN_TOKEN || "local-dev-token";
+const INSTANCE_ID = process.env.INSTANCE_ID || `backend-${PORT}`;
 
 function getRequestId(req) {
     return req.get("x-request-id") || crypto.randomUUID();
@@ -134,6 +135,8 @@ function getAverageLatencyMs() {
 function getBaseHealth() {
     return {
         service: "simple-crud-backend",
+        instanceId: INSTANCE_ID,
+        port: Number(PORT),
         version: APP_VERSION,
         status: "ok",
         uptimeSeconds: Math.floor(process.uptime()),

@@ -8,6 +8,17 @@ const http = axios.create({
 });
 const defaultAdminToken = "local-dev-token";
 
+function decodeJwtPayload(token) {
+  try {
+    const [, payload] = token.split(".");
+    const normalizedPayload = payload.replace(/-/g, "+").replace(/_/g, "/");
+    const paddedPayload = normalizedPayload.padEnd(Math.ceil(normalizedPayload.length / 4) * 4, "=");
+    return JSON.parse(atob(paddedPayload));
+  } catch {
+    return null;
+  }
+}
+
 const scenarios = [
   {
     title: "Health check",
@@ -65,12 +76,28 @@ function App() {
   const [requestId, setRequestId] = useState(`web-${Date.now()}`);
   const [events, setEvents] = useState([]);
 
+  // Microservices Lab State
+  const [msToken, setMsToken] = useState(localStorage.getItem("ms_token") || "");
+  const [msUserId, setMsUserId] = useState(() => decodeJwtPayload(localStorage.getItem("ms_token") || "")?.id || "");
+  const [msAuthForm, setMsAuthForm] = useState({ email: "test@example.com", password: "password123" });
+  const [msProfileForm, setMsProfileForm] = useState({ name: "Demo User", age: 28, bio: "Learning Nginx microservices routing" });
+  const [msProfile, setMsProfile] = useState(null);
+  const [msProducts, setMsProducts] = useState([]);
+  const [msNewProduct, setMsNewProduct] = useState({ name: "", description: "" });
+  const [msResult, setMsResult] = useState(null);
+
   const appName = import.meta.env.VITE_APP_NAME || "Nginx Learning Lab";
   const appVersion = import.meta.env.VITE_APP_VERSION || "dev";
 
   const apiMode = useMemo(() => {
     return API_CONFIG.HOST ? `API host: ${API_CONFIG.HOST}` : "API mode: same-domain proxy";
   }, []);
+
+  const authHeaders = useMemo(() => {
+    return {
+      ...(msToken ? { Authorization: `Bearer ${msToken}` } : {}),
+    };
+  }, [msToken]);
 
   const capture = async (request) => {
     const started = performance.now();
@@ -155,6 +182,92 @@ function App() {
       label,
       result: await capture(request),
     });
+  };
+
+  // Microservices Lab Functions
+  const runMs = async (label, request) => {
+    const res = await capture(request);
+    setMsResult({ label, result: res });
+    return res;
+  };
+
+  const handleRegister = async () => {
+    const res = await runMs("Register User", () => http.post(API_ENDPOINTS.GATEWAY_AUTH_REGISTER, msAuthForm));
+    if (res.ok && res.data?._id) {
+      setMsUserId(res.data._id);
+      const loginRes = await runMs("Login Registered User", () => http.post(API_ENDPOINTS.GATEWAY_AUTH_LOGIN, msAuthForm));
+      if (loginRes.ok && loginRes.data.token) {
+        const payload = decodeJwtPayload(loginRes.data.token);
+        setMsToken(loginRes.data.token);
+        setMsUserId(payload?.id || res.data._id);
+        localStorage.setItem("ms_token", loginRes.data.token);
+      }
+    }
+  };
+
+  const handleLogin = async () => {
+    const res = await runMs("Login User", () => http.post(API_ENDPOINTS.GATEWAY_AUTH_LOGIN, msAuthForm));
+    if (res.ok && res.data.token) {
+      const payload = decodeJwtPayload(res.data.token);
+      setMsToken(res.data.token);
+      setMsUserId(payload?.id || "");
+      localStorage.setItem("ms_token", res.data.token);
+    }
+  };
+
+  const handleLogout = () => {
+    setMsToken("");
+    setMsUserId("");
+    setMsProfile(null);
+    localStorage.removeItem("ms_token");
+    setMsProducts([]);
+    setMsResult(null);
+  };
+
+  const fetchMsProfile = async () => {
+    if (!msUserId) return;
+
+    const res = await runMs("Fetch User Profile", () => http.get(API_ENDPOINTS.GATEWAY_USER_PROFILE(msUserId), { headers: authHeaders }));
+    if (res.ok) {
+      setMsProfile(res.data);
+    }
+  };
+
+  const saveMsProfile = async () => {
+    if (!msUserId) return;
+
+    const payload = {
+      name: msProfileForm.name,
+      age: Number(msProfileForm.age) || 0,
+      bio: msProfileForm.bio,
+    };
+    const res = await runMs("Save User Profile", () => http.put(API_ENDPOINTS.GATEWAY_USER_PROFILE(msUserId), payload, { headers: authHeaders }));
+    if (res.ok) {
+      setMsProfile(res.data);
+    }
+  };
+
+  const fetchMsProducts = async () => {
+    const res = await runMs("Fetch Products", () => http.get(API_ENDPOINTS.GATEWAY_PRODUCTS, { headers: authHeaders }));
+    if (res.ok) {
+      setMsProducts(res.data);
+    }
+  };
+
+  const addMsProduct = async () => {
+    if (!msNewProduct.name.trim()) return;
+    const res = await runMs("Add Product", () => http.post(API_ENDPOINTS.GATEWAY_PRODUCTS, msNewProduct, { headers: authHeaders }));
+    if (res.ok) {
+      setMsNewProduct({ name: "", description: "" });
+      fetchMsProducts();
+    }
+  };
+
+  const deleteMsProduct = async (id) => {
+    const res = await runMs("Delete Product", () => http.delete(API_ENDPOINTS.GATEWAY_PRODUCT_BY_ID(id), { headers: authHeaders }));
+    if (res.ok) {
+      fetchMsProducts();
+    }
   };
 
   const startEventStream = () => {
@@ -407,6 +520,123 @@ function App() {
           <div className="result-block">
             <h3>{advancedResult.label}</h3>
             <ResultPanel result={advancedResult.result} />
+          </div>
+        )}
+      </section>
+
+      <section className="panel">
+        <div className="panel-header">
+          <div>
+            <p className="eyebrow">Microservices architecture</p>
+            <h2>Microservices Lab</h2>
+          </div>
+          {msToken && <button className="secondary" onClick={handleLogout}>Logout</button>}
+        </div>
+
+        <div className="advanced-grid">
+          <div className="feature-box">
+            <h3>Identity & Gateway</h3>
+            <p>Register or Login to get a JWT token. Nginx routes each API path to the correct service.</p>
+            <div className="stacked-form">
+              <input
+                value={msAuthForm.email}
+                onChange={(e) => setMsAuthForm({ ...msAuthForm, email: e.target.value })}
+                placeholder="Email"
+              />
+              <input
+                type="password"
+                value={msAuthForm.password}
+                onChange={(e) => setMsAuthForm({ ...msAuthForm, password: e.target.value })}
+                placeholder="Password"
+              />
+              <div className="control-row">
+                <button onClick={handleRegister}>Register</button>
+                <button onClick={handleLogin}>Login</button>
+                <button className="secondary" onClick={() => runMs("Nginx Gateway Health", () => http.get(API_ENDPOINTS.GATEWAY_HEALTH))}>
+                  Gateway Health
+                </button>
+              </div>
+              {msUserId && <code>User ID: {msUserId}</code>}
+            </div>
+          </div>
+
+          <div className="feature-box">
+            <h3>User Service</h3>
+            <p>Save and fetch a profile through <code>/api/users/:id</code>.</p>
+            {msUserId ? (
+              <div className="stacked-form">
+                <input
+                  value={msProfileForm.name}
+                  onChange={(e) => setMsProfileForm({ ...msProfileForm, name: e.target.value })}
+                  placeholder="Profile name"
+                />
+                <input
+                  type="number"
+                  min="0"
+                  value={msProfileForm.age}
+                  onChange={(e) => setMsProfileForm({ ...msProfileForm, age: e.target.value })}
+                  placeholder="Age"
+                />
+                <input
+                  value={msProfileForm.bio}
+                  onChange={(e) => setMsProfileForm({ ...msProfileForm, bio: e.target.value })}
+                  placeholder="Bio"
+                />
+                <div className="control-row">
+                  <button onClick={saveMsProfile}>Save</button>
+                  <button className="secondary" onClick={fetchMsProfile}>Get</button>
+                </div>
+                {msProfile && (
+                  <div className="item-row">
+                    <span>{msProfile.name || "Unnamed profile"}</span>
+                    <code>{msProfile.age ?? 0} yrs</code>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <p className="notice">Register or login to get a user id.</p>
+            )}
+          </div>
+
+          <div className="feature-box">
+            <h3>Product Service</h3>
+            <p>Requires JWT. Demonstrates path-based routing: <code>/api/products</code> &rarr; <code>product-service</code></p>
+            {msToken || msUserId ? (
+              <div className="stacked-form">
+                <input
+                  value={msNewProduct.name}
+                  onChange={(e) => setMsNewProduct({ ...msNewProduct, name: e.target.value })}
+                  placeholder="Product name"
+                />
+                <input
+                  value={msNewProduct.description}
+                  onChange={(e) => setMsNewProduct({ ...msNewProduct, description: e.target.value })}
+                  placeholder="Description"
+                />
+                <div className="control-row">
+                  <button onClick={addMsProduct}>Add</button>
+                  <button className="secondary" onClick={fetchMsProducts}>Get</button>
+                </div>
+
+                <div className="item-list">
+                  {msProducts.map((p) => (
+                    <div className="item-row" key={p._id}>
+                      <span>{p.name}</span>
+                      <button className="secondary" onClick={() => deleteMsProduct(p._id)}>Delete</button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : (
+              <p className="notice">Please login to access products.</p>
+            )}
+          </div>
+        </div>
+
+        {msResult && (
+          <div className="result-block">
+            <h3>{msResult.label}</h3>
+            <ResultPanel result={msResult.result} />
           </div>
         )}
       </section>

@@ -1,18 +1,4 @@
-version: "3.8"
-
 services:
-  api-gateway:
-    build: ./api-gateway
-    container_name: api-gateway
-    ports:
-      - "4000:4000"
-    env_file:
-      - ./api-gateway/.env
-    depends_on:
-      - auth-service
-      - user-service
-      - product-service
-
   auth-service:
     build: ./auth-service
     container_name: auth-service
@@ -28,6 +14,8 @@ services:
       - "4002:4002"
     env_file:
       - ./user-service/.env
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-supersecretkey}
 
   product-service:
     build: ./product-service
@@ -36,3 +24,5 @@ services:
       - "4003:4003"
     env_file:
       - ./product-service/.env
+    environment:
+      JWT_SECRET: ${JWT_SECRET:-supersecretkey}
