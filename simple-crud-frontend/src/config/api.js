@@ -34,6 +34,12 @@ export const API_ENDPOINTS = {
     REQUEST_ID: `${HOST}/debug/request-id`,
     ADMIN_RESET: `${HOST}/admin/reset`,
     EVENTS: (count = 10, intervalMs = 1000) => `${HOST}/stream/events?count=${count}&intervalMs=${intervalMs}`,
+    GATEWAY_HEALTH: `${HOST}/gateway/health`,
+    GATEWAY_AUTH_REGISTER: `${HOST}/api/auth/register`,
+    GATEWAY_AUTH_LOGIN: `${HOST}/api/auth/login`,
+    GATEWAY_USER_PROFILE: (id) => `${HOST}/api/users/${id}`,
+    GATEWAY_PRODUCTS: `${HOST}/api/products`,
+    GATEWAY_PRODUCT_BY_ID: (id) => `${HOST}/api/products/${id}`,
 };
 
 export const API_CONFIG = {

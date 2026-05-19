@@ -1,0 +1,30 @@
+services:
+  nginx-lb:
+    image: nginx:1.27-alpine
+    container_name: simple-crud-nginx-lb
+    ports:
+      - "8080:80"
+    volumes:
+      - ./linux-nginx-configs/local-load-balancer.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - backend-1
+      - backend-2
+      - backend-3
+
+  backend-1:
+    build: ./simple-crud-backend
+    environment:
+      PORT: 5000
+      INSTANCE_ID: backend-1
+
+  backend-2:
+    build: ./simple-crud-backend
+    environment:
+      PORT: 5000
+      INSTANCE_ID: backend-2
+
+  backend-3:
+    build: ./simple-crud-backend
+    environment:
+      PORT: 5000
+      INSTANCE_ID: backend-3

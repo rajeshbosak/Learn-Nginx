@@ -11,6 +11,23 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.get("/", (req, res) => {
+    res.json({
+        service: "auth-service",
+        role: "Handles register/login requests",
+        publicRoutes: ["POST /auth/register", "POST /auth/login"],
+        gatewayRoute: "/api/auth/*",
+    });
+});
+
+app.get("/health", (req, res) => {
+    res.json({
+        service: "auth-service",
+        status: "ok",
+        timestamp: new Date().toISOString(),
+    });
+});
+
 app.post("/auth/register", async (req, res) => {
     const user = await User.create(req.body);
     res.json(user);
