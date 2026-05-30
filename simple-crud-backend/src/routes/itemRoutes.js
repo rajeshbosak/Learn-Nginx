@@ -3,6 +3,7 @@ const { log } = require("../logger");
 const { writeLimiter } = require("../middleware/rateLimiters");
 const {
     addItem,
+    deleteAllItems,
     deleteItem,
     findItem,
     listItems,
@@ -90,6 +91,11 @@ router.post("/api/v1/items/bulk", writeLimiter, (req, res) => {
         count: seeded.length,
         totalItems: listItems().length,
     });
+});
+
+router.delete("/api/v1/items", (req, res) => {
+    const deletedCount = deleteAllItems();
+    res.json({ message: "All items deleted", deletedCount });
 });
 
 router.delete("/api/v1/items/:id", (req, res) => {

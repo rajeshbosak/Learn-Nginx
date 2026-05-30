@@ -30,6 +30,7 @@ export const API_ENDPOINTS = {
         return `${HOST}/api/v1/items?${params.toString()}`;
     },
     BULK_ITEMS: `${HOST}/api/v1/items/bulk`,
+    DELETE_ALL_ITEMS: `${HOST}/api/v1/items`,
     ORDERS: `${HOST}/api/v1/orders`,
     REQUEST_ID: `${HOST}/debug/request-id`,
     ADMIN_RESET: `${HOST}/admin/reset`,
