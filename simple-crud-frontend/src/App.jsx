@@ -247,6 +247,17 @@ function App() {
     fetchItems();
   };
 
+  const deleteAllItems = async () => {
+    const result = await runTask("items-delete-all", "Delete All Items", () => http.delete(API_ENDPOINTS.DELETE_ALL_ITEMS));
+
+    if (!result.ok) {
+      setErrorMessage(`Failed to delete all items: ${result.data.message || result.status}`);
+      return;
+    }
+
+    fetchItems();
+  };
+
   const runLoadBalanceCheck = async () => {
     setBusyState("balance", true);
     const samples = [];
@@ -495,6 +506,7 @@ function App() {
                   <input value={newItem} onChange={event => setNewItem(event.target.value)} onKeyDown={event => event.key === "Enter" && addItem()} placeholder="Add an item name" />
                   <LoadingButton loading={busy["items-add"]} onClick={addItem}>Add</LoadingButton>
                   <LoadingButton variant="secondary" loading={busy["items-refresh"]} onClick={fetchItems}>Refresh</LoadingButton>
+                  <LoadingButton variant="danger" loading={busy["items-delete-all"]} onClick={deleteAllItems}>Delete All</LoadingButton>
                 </div>
                 {errorMessage && <p className="notice error">{errorMessage}</p>}
                 <div className="item-list">

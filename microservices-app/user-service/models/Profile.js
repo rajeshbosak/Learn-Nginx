@@ -1,101 +1,31 @@
-const crypto = require("crypto");
+const mongoose = require("mongoose");
 
-let profilesCollectionPromise;
+const ProfileSchema = new mongoose.Schema({
+    userId: { type: String, required: true, index: true },
+    name: { type: String },
+    age: { type: Number },
+    bio: { type: String },
+    updatedAt: { type: Date, default: Date.now },
+});
 
-function toSelector(query) {
-    return Object.fromEntries(
-        Object.entries(query).map(([key, value]) => [key, { $eq: value }])
-    );
-}
-
-function cleanProfile(data) {
-    return Object.fromEntries(
-        Object.entries(data).filter(([, value]) => value !== undefined)
-    );
-}
-
-function toPlain(doc) {
-    if (!doc) return null;
-
-    const data = doc.toJSON();
-    delete data._rev;
-    delete data._meta;
-    delete data._deleted;
-    return data;
-}
-
-async function getProfilesCollection() {
-    if (!profilesCollectionPromise) {
-        profilesCollectionPromise = (async () => {
-            const { createRxDatabase } = await import("rxdb");
-            const { getRxStorageMemory } = await import("rxdb/plugins/storage-memory");
-
-            const db = await createRxDatabase({
-                name: "userservicememory",
-                storage: getRxStorageMemory(),
-                multiInstance: false,
-            });
-
-            await db.addCollections({
-                profiles: {
-                    schema: {
-                        version: 0,
-                        primaryKey: "_id",
-                        type: "object",
-                        properties: {
-                            _id: { type: "string", maxLength: 100 },
-                            userId: { type: "string" },
-                            name: { type: "string" },
-                            age: { type: "number" },
-                            bio: { type: "string" },
-                            updatedAt: { type: "string" },
-                        },
-                        required: ["_id", "userId", "updatedAt"],
-                    },
-                },
-            });
-
-            return db.profiles;
-        })();
-    }
-
-    return profilesCollectionPromise;
-}
+const ProfileModel = mongoose.models.Profile || mongoose.model("Profile", ProfileSchema);
 
 module.exports = {
     async findOne(query) {
-        const profiles = await getProfilesCollection();
-        const doc = await profiles.findOne({ selector: toSelector(query) }).exec();
-        return toPlain(doc);
+        const q = {};
+        if (query.userId) q.userId = query.userId;
+        if (query._id) q._id = query._id;
+
+        const doc = await ProfileModel.findOne(q).lean();
+        if (!doc) return null;
+        return { _id: doc._id.toString(), userId: doc.userId, name: doc.name, age: doc.age, bio: doc.bio, updatedAt: doc.updatedAt };
     },
 
     async findOneAndUpdate(query, update, options = {}) {
-        const profiles = await getProfilesCollection();
-        const existing = await profiles.findOne({ selector: toSelector(query) }).exec();
-
-        if (!existing && !options.upsert) {
-            return null;
-        }
-
-        if (existing) {
-            const beforeUpdate = toPlain(existing);
-            const patch = cleanProfile({
-                ...update,
-                updatedAt: new Date().toISOString(),
-            });
-
-            await existing.patch(patch);
-            return options.new ? { ...beforeUpdate, ...patch } : beforeUpdate;
-        }
-
-        const profile = cleanProfile({
-            _id: crypto.randomUUID(),
-            ...query,
-            ...update,
-            updatedAt: new Date().toISOString(),
-        });
-
-        const inserted = await profiles.insert(profile);
-        return options.new ? toPlain(inserted) : null;
+        const q = { userId: query.userId };
+        const opts = { new: !!options.new, upsert: !!options.upsert };
+        const updated = await ProfileModel.findOneAndUpdate(q, { ...update, updatedAt: new Date() }, opts).lean();
+        if (!updated) return null;
+        return { _id: updated._id.toString(), userId: updated.userId, name: updated.name, age: updated.age, bio: updated.bio, updatedAt: updated.updatedAt };
     },
 };

@@ -110,6 +110,9 @@ Stop the lab:
 docker compose -f docker-compose.local-lb.yml down
 ```
 
+> Note: The `docker-compose.master.yml` Mongo service is configured to store `/data/db` in a `tmpfs` volume.
+> This means the database is ephemeral and its data is removed when the containers stop.
+
 ### What the Backend Teaches
 
 ```text

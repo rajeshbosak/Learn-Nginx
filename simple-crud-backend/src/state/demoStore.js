@@ -46,6 +46,12 @@ function deleteItem(id) {
     return exists;
 }
 
+function deleteAllItems() {
+    const deletedCount = items.length;
+    items = [];
+    return deletedCount;
+}
+
 function searchItems({ page, limit, q, category }) {
     const safePage = Math.max(Number.parseInt(page, 10) || 1, 1);
     const safeLimit = Math.min(Math.max(Number.parseInt(limit, 10) || 10, 1), 100);
@@ -135,6 +141,7 @@ function listOrders() {
 module.exports = {
     addItem,
     createOrder,
+    deleteAllItems,
     deleteItem,
     findItem,
     listItems,
